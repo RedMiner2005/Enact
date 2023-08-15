@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>Enact - Slideshow</title>
+        <link rel="icon" type="image/x-icon" href="https://firebasestorage.googleapis.com/v0/b/web-slideshow.appspot.com/o/common%2Ffavicon.ico?alt=media&token=c06a8608-b5bb-4d86-a95c-d87ee2c75dd0">
+    </head>
+    <body style="background-color: black;">
+        <div id="splash" style="position:absolute;top:0;left:0;width:100%;height:100%;background-color:rgb(20, 20, 20);color:white;">
+            <img src="https://firebasestorage.googleapis.com/v0/b/web-slideshow.appspot.com/o/common%2FEnactLogo.png?alt=media&token=4b6a6d68-c0a4-470e-b9a8-8d0f8926f522" style="position: fixed; display: block; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 25%;" alt="Splash screen - Enact logo"/>
+        </div>
+        <img id="waitImg" src="https://firebasestorage.googleapis.com/v0/b/web-slideshow.appspot.com/o/common%2FWaitPage.png?alt=media&token=ab77b5a1-e98c-49c4-a738-40be65352702" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0;" alt="Wait Screen"/>
+    </body>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.10.0/firebase-app.js";
+        import { getFirestore, onSnapshot, getDoc, doc } from 'https://www.gstatic.com/firebasejs/9.10.0/firebase-firestore.js'
+
+        const firebaseConfig = {
+            apiKey: "#APIKEY#",
+            authDomain: "web-slideshow.firebaseapp.com",
+            projectId: "web-slideshow",
+            storageBucket: "web-slideshow.appspot.com",
+            messagingSenderId: "576130647199",
+            appId: "1:576130647199:web:6fdcf552a00bffcc7b8eaa"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore();
+        const imageLinks = (await getDoc(doc(db, "pigeons", "slides"))).data()["slide_urls"];
+        document.title = (await getDoc(doc(db, "pigeons", "metadata"))).data()["title"] + " - Enact";
+        let loaded = 0;
+        var images = [];
+        var curr = imageLinks.length - 1;
+        for (var i = 0; i < imageLinks.length; i++) {
+            var imageElement = document.createElement('img');
+            imageElement.src = imageLinks[i];
+            imageElement.style.position = 'fixed';
+            imageElement.style.top = '0';
+            imageElement.style.left = '0';
+            imageElement.style.width = '100%';
+            imageElement.style.height = '100%';
+            imageElement.style.objectFit = "contain"
+            imageElement.style.opacity = 0;
+            imageElement.onload = function() {
+                loaded++;
+                if (loaded == imageLinks.length) {
+                    setTimeout(function() {
+                        init()
+                        document.getElementById("splash").style.opacity = 0;
+                        document.getElementById("waitImg").style.opacity = 1;
+                    }, 1000);
+                }
+            }
+            document.body.appendChild(imageElement);
+            images.push(imageElement);
+        }
+        const unsub = onSnapshot(doc(db, "pigeons", "curr_slide"), (doc) => {
+            document.getElementById("waitImg").hidden = true;
+            changeImage(doc.data()["number"]);
+        });
+
+        async function init() {
+            let next = (await getDoc(doc(db, "pigeons", "curr_slide"))).data()["number"];
+            if (next == -1) { curr = next; return; }
+            else { document.addEventListener('onload', (event) => (document.getElementById("waitImg").hidden = true)) }
+            changeImage(next);
+        }
+
+        function changeImage(next) {
+            if (loaded != images.length) {
+                return;
+            }
+            let currObj;
+            let nextObj;
+            if (curr == -1) {
+                currObj = document.getElementById("waitImg");
+                currObj.hidden = true;
+            } else {
+                currObj = images[curr];
+            }
+            if (next == -1) {
+                nextObj = document.getElementById("waitImg");
+                nextObj.hidden = false;
+            } else {
+                nextObj = images[next];
+            }
+
+            var fader = setInterval(function() {
+                const del = 0.01;
+                if (nextObj.style.opacity < 1) { currObj.style.opacity = currObj.style.opacity - del; nextObj.style.opacity = 1 - currObj.style.opacity; }
+            }, 5);
+            setTimeout(function() { clearInterval(fader); currObj.style.opacity = 0; nextObj.style.opacity = 1; curr = next;}, 1000);
+        }
+    </script>
+</html>
